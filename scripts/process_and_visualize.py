@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import math
-import re
 import shutil
 from pathlib import Path
 
@@ -11,13 +10,14 @@ from PIL import Image, ImageDraw, ImageFont
 
 
 ROOT = Path(__file__).resolve().parents[1]
-RAW_PATH = ROOT / "data" / "raw" / "llm_benchmark_sample_2024_2026.csv"
+RAW_PATH = ROOT / "data" / "raw" / "llm_mainstream_2024_2026.csv"
 PROCESSED_DIR = ROOT / "data" / "processed"
-PROCESSED_PATH = PROCESSED_DIR / "llm_benchmark_processed.csv"
+PROCESSED_PATH = PROCESSED_DIR / "llm_mainstream_processed.csv"
 FIGURE_DIR = ROOT / "outputs" / "figures"
 DASHBOARD_FIGURE_DIR = ROOT / "dashboard" / "assets" / "figures"
 DASHBOARD_DATA_DIR = ROOT / "dashboard" / "assets" / "data"
 
+COLLECTION_CUTOFF = "2026-06-05"
 BENCHMARKS = ["MMLU_PRO", "IFEval", "BBH", "GPQA", "MATH_Lvl_5", "MuSR"]
 FONT_CANDIDATES = [
     Path(r"C:\Windows\Fonts\NotoSansSC-VF.ttf"),
@@ -27,6 +27,7 @@ FONT_CANDIDATES = [
     Path(r"C:\Windows\Fonts\simsun.ttc"),
 ]
 
+W, H = 2000, 1250
 PALETTE = {
     "ink": (35, 43, 56),
     "muted": (96, 108, 124),
@@ -38,42 +39,74 @@ PALETTE = {
     "orange": (234, 88, 12),
     "red": (220, 38, 38),
     "purple": (124, 58, 237),
+    "gold": (202, 138, 4),
+    "cyan": (8, 145, 178),
+}
+SERIES_COLORS = {
+    "GPT-o": PALETTE["blue"],
+    "Claude": PALETTE["purple"],
+    "Gemini": PALETTE["green"],
+    "Llama": PALETTE["teal"],
+    "Qwen": PALETTE["orange"],
+    "DeepSeek": PALETTE["red"],
 }
 
 
 def ensure_dirs() -> None:
     for path in [PROCESSED_DIR, FIGURE_DIR, DASHBOARD_FIGURE_DIR, DASHBOARD_DATA_DIR]:
         path.mkdir(parents=True, exist_ok=True)
+    for folder in [FIGURE_DIR, DASHBOARD_FIGURE_DIR]:
+        for old in folder.glob("*.png"):
+            old.unlink()
 
 
 def load_font(size: int, bold: bool = False) -> ImageFont.FreeTypeFont:
     candidates = FONT_CANDIDATES.copy()
     if bold:
-        candidates.insert(0, Path(r"C:\Windows\Fonts\NotoSansSC-VF.ttf"))
-        candidates.insert(1, Path(r"C:\Windows\Fonts\Dengb.ttf"))
+        candidates.insert(0, Path(r"C:\Windows\Fonts\Dengb.ttf"))
     for path in candidates:
         if path.exists():
             return ImageFont.truetype(str(path), size=size)
     return ImageFont.load_default()
 
 
-def text(draw: ImageDraw.ImageDraw, xy, content: str, size=28, fill=None, bold=False, anchor=None) -> None:
-    draw.text(xy, content, font=load_font(size, bold), fill=fill or PALETTE["ink"], anchor=anchor)
+def text(draw: ImageDraw.ImageDraw, xy, content: str, size=28, fill=None, bold=False, anchor=None, align="left") -> None:
+    draw.text(xy, str(content), font=load_font(size, bold), fill=fill or PALETTE["ink"], anchor=anchor, align=align)
 
 
-def text_size(content: str, size=28, bold=False) -> tuple[int, int]:
+def text_box(draw, xy, content: str, width: int, size=28, fill=None, bold=False, line_gap=8) -> int:
     font = load_font(size, bold)
-    box = font.getbbox(content)
-    return box[2] - box[0], box[3] - box[1]
+    words = list(str(content))
+    lines: list[str] = []
+    line = ""
+    for ch in words:
+        trial = line + ch
+        if font.getbbox(trial)[2] - font.getbbox(trial)[0] <= width or not line:
+            line = trial
+        else:
+            lines.append(line)
+            line = ch
+    if line:
+        lines.append(line)
+    x, y = xy
+    line_h = size + line_gap
+    for i, ln in enumerate(lines):
+        draw.text((x, y + i * line_h), ln, font=font, fill=fill or PALETTE["ink"])
+    return len(lines) * line_h
 
 
-def canvas(title: str, subtitle: str = "", width=1280, height=760) -> tuple[Image.Image, ImageDraw.ImageDraw]:
-    img = Image.new("RGB", (width, height), "white")
+def text_width(content: str, size=28, bold=False) -> int:
+    box = load_font(size, bold).getbbox(str(content))
+    return box[2] - box[0]
+
+
+def canvas(title: str, subtitle: str = "") -> tuple[Image.Image, ImageDraw.ImageDraw]:
+    img = Image.new("RGB", (W, H), "white")
     draw = ImageDraw.Draw(img)
-    draw.rectangle([0, 0, width, 92], fill=(245, 248, 252))
-    text(draw, (48, 26), title, size=34, bold=True)
+    draw.rectangle([0, 0, W, 150], fill=(245, 248, 252))
+    text(draw, (70, 38), title, size=46, bold=True)
     if subtitle:
-        text(draw, (48, 66), subtitle, size=18, fill=PALETTE["muted"])
+        text(draw, (70, 98), subtitle, size=24, fill=PALETTE["muted"])
     return img, draw
 
 
@@ -81,13 +114,6 @@ def save_chart(img: Image.Image, name: str) -> None:
     png_path = FIGURE_DIR / f"{name}.png"
     img.save(png_path, quality=96)
     shutil.copy2(png_path, DASHBOARD_FIGURE_DIR / png_path.name)
-
-
-def extract_params_from_name(name: str) -> float | None:
-    matches = re.findall(r"(\d+(?:\.\d+)?)\s*[bB]", str(name))
-    if not matches:
-        return None
-    return float(matches[-1])
 
 
 def minmax(series: pd.Series) -> pd.Series:
@@ -98,47 +124,62 @@ def minmax(series: pd.Series) -> pd.Series:
     return (series - lo) / (hi - lo)
 
 
-def impute_elo_with_knn(df: pd.DataFrame, k: int = 5) -> pd.Series:
-    features = df[BENCHMARKS].astype(float)
-    features = features.fillna(features.mean())
-    norm = features.apply(minmax)
-    known_mask = df["chatbot_arena_elo"].notna()
-    known_x = norm[known_mask].to_numpy()
-    known_y = df.loc[known_mask, "chatbot_arena_elo"].astype(float).to_numpy()
-    result = df["chatbot_arena_elo"].astype(float).copy()
-
-    for idx in df.index[~known_mask]:
+def impute_numeric(df: pd.DataFrame, target: str, features: list[str]) -> pd.Series:
+    result = pd.to_numeric(df[target], errors="coerce").copy()
+    known = result.notna()
+    if known.sum() == 0:
+        return result
+    feature_df = df[features].apply(pd.to_numeric, errors="coerce")
+    feature_df = feature_df.fillna(feature_df.mean())
+    norm = feature_df.apply(minmax)
+    known_x = norm[known].to_numpy()
+    known_y = result[known].to_numpy()
+    for idx in df.index[~known]:
+        family = df.loc[idx, "family"]
+        same = df.index[(df["family"] == family) & known]
+        if len(same) >= 2:
+            result.loc[idx] = result.loc[same].mean()
+            continue
         x = norm.loc[idx].to_numpy()
         distances = np.sqrt(((known_x - x) ** 2).sum(axis=1))
-        nearest = np.argsort(distances)[:k]
+        nearest = np.argsort(distances)[:5]
         weights = 1 / (distances[nearest] + 1e-6)
         result.loc[idx] = float(np.average(known_y[nearest], weights=weights))
-
-    return result.round(1)
+    return result.round(2)
 
 
 def process_data() -> pd.DataFrame:
     if not RAW_PATH.exists():
-        raise FileNotFoundError("请先运行 scripts/generate_sample_data.py 生成教学样例数据。")
-
+        raise FileNotFoundError("请先运行 scripts/generate_sample_data.py 生成主流模型数据。")
     df = pd.read_csv(RAW_PATH)
-    df["parameter_count_B"] = pd.to_numeric(df["parameter_count_B"], errors="coerce")
-    bad_params = df["parameter_count_B"].isna() | (df["parameter_count_B"] <= 0)
-    df.loc[bad_params, "parameter_count_B"] = df.loc[bad_params, "model_name"].map(extract_params_from_name)
-    df["parameter_count_B"] = df["parameter_count_B"].replace({0: np.nan})
+    df["release_date"] = pd.to_datetime(df["release_date"])
+    df["release_year_month"] = df["release_date"].dt.strftime("%Y-%m")
+    df["collected_through"] = COLLECTION_CUTOFF
 
-    for col in BENCHMARKS + ["arena_votes", "output_tokens_per_second", "time_to_first_token_s"]:
+    numeric_cols = BENCHMARKS + [
+        "parameter_count_B",
+        "chatbot_arena_elo",
+        "arena_votes",
+        "output_tokens_per_second",
+        "time_to_first_token_s",
+    ]
+    for col in numeric_cols:
         df[col] = pd.to_numeric(df[col], errors="coerce")
 
+    df["parameter_count_observed"] = df["parameter_count_B"].notna()
     df["chatbot_arena_elo_observed"] = df["chatbot_arena_elo"].notna()
-    df["chatbot_arena_elo"] = pd.to_numeric(df["chatbot_arena_elo"], errors="coerce")
-    df["chatbot_arena_elo"] = impute_elo_with_knn(df)
+    df["hardware_metrics_observed"] = df["output_tokens_per_second"].notna() & df["time_to_first_token_s"].notna()
+
+    df["chatbot_arena_elo"] = impute_numeric(df, "chatbot_arena_elo", BENCHMARKS)
+    df["output_tokens_per_second"] = impute_numeric(df, "output_tokens_per_second", BENCHMARKS + ["chatbot_arena_elo"])
+    df["time_to_first_token_s"] = impute_numeric(df, "time_to_first_token_s", BENCHMARKS + ["chatbot_arena_elo"])
 
     for col in BENCHMARKS:
         df[f"{col}_norm"] = minmax(df[col])
-
     df["Average_Score"] = df[BENCHMARKS].mean(axis=1).round(2)
     df["Average_Score_norm"] = minmax(df["Average_Score"])
+    df["Elo_norm"] = minmax(df["chatbot_arena_elo"])
+    df["Composite_Score"] = (0.55 * df["Average_Score_norm"] + 0.35 * df["Elo_norm"] + 0.10 * minmax(df["IFEval"])).round(3)
     df["Score_per_Billion_Params"] = (df["Average_Score"] / df["parameter_count_B"]).replace([np.inf, -np.inf], np.nan).round(3)
 
     elo_norm = minmax(df["chatbot_arena_elo"])
@@ -146,142 +187,166 @@ def process_data() -> pd.DataFrame:
     ttft_norm = minmax(df["time_to_first_token_s"])
     df["Hardware_Pareto_Index"] = np.sqrt((1 - elo_norm) ** 2 + (1 - tps_norm) ** 2 + ttft_norm**2).round(3)
 
-    df.to_csv(PROCESSED_PATH, index=False, encoding="utf-8-sig")
+    df = df.sort_values(["release_date", "provider", "model_name"])
+    df.to_csv(PROCESSED_PATH, index=False, encoding="utf-8-sig", date_format="%Y-%m-%d")
     shutil.copy2(PROCESSED_PATH, DASHBOARD_DATA_DIR / PROCESSED_PATH.name)
     return df
 
 
-def draw_axes(draw, left, top, right, bottom, x_label, y_label):
-    draw.line([left, bottom, right, bottom], fill=PALETTE["ink"], width=2)
-    draw.line([left, top, left, bottom], fill=PALETTE["ink"], width=2)
-    for i in range(6):
-        y = top + i * (bottom - top) / 5
+def map_value(value, src_min, src_max, dst_min, dst_max):
+    if src_max == src_min:
+        return (dst_min + dst_max) / 2
+    return dst_min + (value - src_min) / (src_max - src_min) * (dst_max - dst_min)
+
+
+def draw_axes(draw, left, top, right, bottom, x_label, y_label, y_ticks=5):
+    draw.line([left, bottom, right, bottom], fill=PALETTE["ink"], width=3)
+    draw.line([left, top, left, bottom], fill=PALETTE["ink"], width=3)
+    for i in range(y_ticks + 1):
+        y = top + i * (bottom - top) / y_ticks
         draw.line([left, y, right, y], fill=PALETTE["grid"], width=1)
-    text(draw, ((left + right) / 2, bottom + 42), x_label, size=20, fill=PALETTE["muted"], anchor="mm")
-    text(draw, (left, top - 22), y_label, size=20, fill=PALETTE["muted"], anchor="lm")
+    text(draw, ((left + right) / 2, bottom + 62), x_label, size=26, fill=PALETTE["muted"], anchor="mm")
+    text(draw, (left, top - 35), y_label, size=26, fill=PALETTE["muted"], anchor="lm")
 
 
-def chart_scaling_bubble(df: pd.DataFrame) -> None:
-    img, draw = canvas("图表一：参数规模与人类偏好 Elo 的气泡散点图", "X 轴采用 log10 参数量；气泡大小代表 Arena 投票数，颜色区分开放权重与闭源 API。")
-    left, top, right, bottom = 100, 140, 1160, 620
-    draw_axes(draw, left, top, right, bottom, "参数量 parameter_count_B（log10）", "Chatbot Arena Elo")
-    plot_df = df[df["parameter_count_B"].notna()].copy()
-    x_log = np.log10(plot_df["parameter_count_B"])
-    y = plot_df["chatbot_arena_elo"]
+def chart_landscape_bubble(df: pd.DataFrame) -> None:
+    img, draw = canvas("图表一：主流模型横向能力气泡图", "横向比较参数规模、综合能力、人类偏好与开放性；仅标注关键模型，避免遮挡。")
+    left, top, right, bottom = 140, 230, 1510, 1030
+    draw_axes(draw, left, top, right, bottom, "参数量 parameter_count_B（log10；API 模型放在右侧参考区）", "综合能力分 Average_Score")
+    plot = df.copy()
+    open_plot = plot[plot["parameter_count_B"].notna()].copy()
+    x_log = np.log10(open_plot["parameter_count_B"])
     x_min, x_max = x_log.min(), x_log.max()
-    y_min, y_max = y.min() - 20, y.max() + 20
-
+    y_min, y_max = plot["Average_Score"].min() - 3, plot["Average_Score"].max() + 3
     colors = {"开放权重": PALETTE["teal"], "API/闭源": PALETTE["orange"]}
-    for _, row in plot_df.iterrows():
-        x = left + (math.log10(row["parameter_count_B"]) - x_min) / (x_max - x_min) * (right - left)
-        yy = bottom - (row["chatbot_arena_elo"] - y_min) / (y_max - y_min) * (bottom - top)
-        radius = 8 + math.sqrt(row["arena_votes"] / plot_df["arena_votes"].max()) * 26
+    for _, row in open_plot.iterrows():
+        x = map_value(math.log10(row["parameter_count_B"]), x_min, x_max, left, right)
+        y = map_value(row["Average_Score"], y_min, y_max, bottom, top)
+        radius = 10 + row["Elo_norm"] * 28
         color = colors.get(row["availability"], PALETTE["blue"])
-        draw.ellipse([x - radius, yy - radius, x + radius, yy + radius], fill=color + (90,), outline=color, width=2)
-        if row["model_name"] in ["GPT-4o", "Qwen2.5-7B-Instruct", "DeepSeek-R1-Distill-Qwen-7B", "Llama-3.1-405B-Instruct"]:
-            label = row["model_name"]
-            label_w, _ = text_size(label, size=15)
-            label_x = x + radius + 4
-            anchor = "lm"
-            if label_x + label_w > right:
-                label_x = x - radius - 4
-                anchor = "rm"
-            text(draw, (label_x, yy), label, size=15, fill=PALETTE["ink"], anchor=anchor)
+        draw.ellipse([x - radius, y - radius, x + radius, y + radius], fill=color, outline="white", width=3)
 
-    bins = np.linspace(x_min, x_max, 7)
-    pts = []
-    for i in range(len(bins) - 1):
-        b = plot_df[(x_log >= bins[i]) & (x_log <= bins[i + 1])]
-        if len(b) >= 2:
-            bx = (bins[i] + bins[i + 1]) / 2
-            by = b["chatbot_arena_elo"].mean()
-            pts.append((left + (bx - x_min) / (x_max - x_min) * (right - left), bottom - (by - y_min) / (y_max - y_min) * (bottom - top)))
-    if len(pts) > 1:
-        draw.line(pts, fill=PALETTE["purple"], width=4)
-        text(draw, (pts[-1][0] - 150, pts[-1][1] - 34), "分段趋势线：边际增益趋缓", size=18, fill=PALETTE["purple"])
+    api_x = right + 115
+    for _, row in plot[plot["parameter_count_B"].isna()].iterrows():
+        y = map_value(row["Average_Score"], y_min, y_max, bottom, top)
+        radius = 10 + row["Elo_norm"] * 28
+        draw.ellipse([api_x - radius, y - radius, api_x + radius, y + radius], fill=PALETTE["orange"], outline="white", width=3)
+    draw.line([right + 42, top, right + 42, bottom], fill=PALETTE["grid"], width=2)
+    text(draw, (api_x, bottom + 62), "API/闭源参考区", size=24, fill=PALETTE["muted"], anchor="mm")
 
-    for label, color in colors.items():
-        x0 = 930 if label == "开放权重" else 1050
-        draw.ellipse([x0, 112, x0 + 18, 130], fill=color, outline=color)
-        text(draw, (x0 + 26, 113), label, size=18)
-    save_chart(img, "01_scaling_bubble")
+    notable = plot.sort_values("Composite_Score", ascending=False).head(10)
+    panel_x = 1700
+    draw.rounded_rectangle([panel_x - 35, 230, 1940, 1030], radius=18, fill=PALETTE["panel"], outline=PALETTE["grid"], width=2)
+    text(draw, (panel_x, 270), "关键观察", size=32, bold=True)
+    notes = [
+        "闭源旗舰仍在高分区密集分布。",
+        "Qwen、DeepSeek、Llama 等开放模型快速逼近。",
+        "参数更大通常更强，但小模型的能力密度正在上升。",
+    ]
+    y = 330
+    for note in notes:
+        draw.ellipse([panel_x, y + 8, panel_x + 12, y + 20], fill=PALETTE["teal"])
+        y += text_box(draw, (panel_x + 24, y), note, 210, size=22, fill=PALETTE["ink"]) + 18
+    text(draw, (panel_x, y + 10), "综合分前十", size=26, bold=True, fill=PALETTE["muted"])
+    y += 52
+    for i, (_, row) in enumerate(notable.iterrows(), 1):
+        text(draw, (panel_x, y), f"{i}. {row['model_name']}", size=20, fill=PALETTE["ink"])
+        y += 34
+    for i, (label, color) in enumerate(colors.items()):
+        x0 = left + i * 150
+        draw.ellipse([x0, 175, x0 + 24, 199], fill=color)
+        text(draw, (x0 + 34, 171), label, size=24)
+    save_chart(img, "01_landscape_bubble")
 
 
-def chart_radar(df: pd.DataFrame) -> None:
-    img, draw = canvas("图表二：7B-9B 量级模型能力雷达图", "同等参数规模下比较六类基准能力，并加入样本均值作为虚线参照。")
-    cx, cy, radius = 620, 390, 245
-    metrics = BENCHMARKS
-    angles = [2 * math.pi * i / len(metrics) - math.pi / 2 for i in range(len(metrics))]
+def chart_provider_ranking(df: pd.DataFrame) -> None:
+    img, draw = canvas("图表二：头部模型横向排名", "每个系列取综合分最高的代表模型，比较不同公司/系列的当前能力位置。")
+    rep = df.sort_values("Composite_Score", ascending=False).groupby("family", as_index=False).head(1).sort_values("Composite_Score", ascending=True)
+    left, top, right, row_h = 520, 218, 1770, 45
+    max_score = rep["Composite_Score"].max()
+    min_score = rep["Composite_Score"].min() - 0.04
+    for i, (_, row) in enumerate(rep.iterrows()):
+        y = top + i * row_h
+        bar_w = map_value(row["Composite_Score"], min_score, max_score, 80, right - left)
+        color = SERIES_COLORS.get(row["family"], PALETTE["blue"])
+        text(draw, (70, y + 6), row["family"], size=21, bold=True)
+        text(draw, (230, y + 6), row["model_name"], size=19, fill=PALETTE["muted"])
+        draw.rounded_rectangle([left, y, left + bar_w, y + 29], radius=8, fill=color)
+        text(draw, (left + bar_w + 14, y + 1), f"{row['Composite_Score']:.3f}", size=19)
+    save_chart(img, "02_provider_ranking")
 
-    for r in [0.25, 0.5, 0.75, 1.0]:
-        pts = [(cx + math.cos(a) * radius * r, cy + math.sin(a) * radius * r) for a in angles]
-        draw.line(pts + [pts[0]], fill=PALETTE["grid"], width=2)
-    for a, label in zip(angles, ["MMLU", "IFEval", "BBH", "GPQA", "MATH", "MuSR"]):
-        x = cx + math.cos(a) * (radius + 48)
-        y = cy + math.sin(a) * (radius + 34)
-        draw.line([cx, cy, cx + math.cos(a) * radius, cy + math.sin(a) * radius], fill=PALETTE["grid"], width=1)
-        text(draw, (x, y), label, size=20, fill=PALETTE["ink"], anchor="mm")
 
-    candidates = df[(df["parameter_count_B"] >= 7) & (df["parameter_count_B"] <= 9.5)].nlargest(3, "Average_Score")
-    colors = [PALETTE["blue"], PALETTE["orange"], PALETTE["green"]]
-
-    mean_vals = [df[f"{m}_norm"].mean() for m in metrics]
-    mean_pts = [(cx + math.cos(a) * radius * v, cy + math.sin(a) * radius * v) for a, v in zip(angles, mean_vals)]
-    draw.line(mean_pts + [mean_pts[0]], fill=PALETTE["muted"], width=3)
-
-    legend_y = 145
-    text(draw, (890, legend_y - 34), "排名模型", size=22, bold=True)
-    for i, (_, row) in enumerate(candidates.iterrows()):
-        vals = [row[f"{m}_norm"] for m in metrics]
-        pts = [(cx + math.cos(a) * radius * v, cy + math.sin(a) * radius * v) for a, v in zip(angles, vals)]
-        draw.polygon(pts, fill=colors[i] + (55,), outline=colors[i])
-        draw.line(pts + [pts[0]], fill=colors[i], width=4)
-        y = legend_y + i * 40
-        draw.rectangle([890, y, 914, y + 18], fill=colors[i])
-        text(draw, (924, y - 2), row["model_name"], size=18)
-    draw.line([890, legend_y + 132, 914, legend_y + 132], fill=PALETTE["muted"], width=4)
-    text(draw, (924, legend_y + 120), "全样本均值线", size=18)
-    save_chart(img, "02_radar_profile")
+def chart_series_progression(df: pd.DataFrame) -> None:
+    img, draw = canvas("图表三：同一系列模型的纵向进步", "按发布日期追踪系列内代表模型的能力变化，观察 2024 到 2026 年 6 月前的演进速度。")
+    families = list(SERIES_COLORS.keys())
+    plot = df[df["family"].isin(families)].copy()
+    plot["date_ord"] = plot["release_date"].map(pd.Timestamp.toordinal)
+    left, top, right, bottom = 140, 235, 1660, 1030
+    draw_axes(draw, left, top, right, bottom, "发布日期", "综合能力分 Average_Score")
+    x_min, x_max = plot["date_ord"].min(), pd.Timestamp(COLLECTION_CUTOFF).toordinal()
+    y_min, y_max = plot["Average_Score"].min() - 2, plot["Average_Score"].max() + 2
+    tick_dates = pd.to_datetime(["2024-01-01", "2024-07-01", "2025-01-01", "2025-07-01", "2026-01-01", COLLECTION_CUTOFF])
+    for dt in tick_dates:
+        x = map_value(dt.toordinal(), x_min, x_max, left, right)
+        draw.line([x, bottom, x, top], fill=(236, 240, 245), width=1)
+        text(draw, (x, bottom + 26), dt.strftime("%Y-%m"), size=20, fill=PALETTE["muted"], anchor="mm")
+    for fam in families:
+        sub = plot[plot["family"] == fam].sort_values("release_date")
+        pts = [(map_value(r["date_ord"], x_min, x_max, left, right), map_value(r["Average_Score"], y_min, y_max, bottom, top)) for _, r in sub.iterrows()]
+        color = SERIES_COLORS[fam]
+        if len(pts) >= 2:
+            draw.line(pts, fill=color, width=5)
+        for x, y in pts:
+            draw.ellipse([x - 8, y - 8, x + 8, y + 8], fill=color, outline="white", width=2)
+        if pts:
+            text(draw, (pts[-1][0] + 12, pts[-1][1] - 12), fam, size=23, fill=color, bold=True)
+    text(draw, (1710, 300), "专业含义", size=30, bold=True)
+    text_box(draw, (1710, 350), "推理强化、蒸馏和 MoE 让多个系列在一年内明显上移。", 220, size=23, fill=PALETTE["ink"])
+    text(draw, (1710, 500), "生活感受", size=30, bold=True)
+    text_box(draw, (1710, 550), "同样是聊天或写代码，新版本更像“少追问、少返工”的助手。", 220, size=23, fill=PALETTE["muted"])
+    save_chart(img, "03_series_progression")
 
 
 def heat_color(value: float, lo: float, hi: float) -> tuple[int, int, int]:
     t = 0 if hi == lo else (value - lo) / (hi - lo)
-    r = int(232 - 180 * t)
-    g = int(245 - 90 * t)
-    b = int(233 - 130 * t)
-    return r, g, b
+    return int(232 - 180 * t), int(245 - 90 * t), int(233 - 130 * t)
 
 
 def chart_architecture_heatmap(df: pd.DataFrame) -> None:
-    img, draw = canvas("图表三：开源架构与训练范式热力矩阵", "单元格数值为平均 MMLU-PRO；用于识别高产出的“架构 + 训练方式”组合。")
+    img, draw = canvas("图表四：架构生态与训练范式热力图", "单元格为平均综合能力分，观察主流模型依靠哪些架构和训练策略取得提升。")
     open_df = df[df["availability"] == "开放权重"].copy()
-    top_arch = open_df["architecture"].value_counts().head(6).index.tolist()
-    paradigms = ["指令微调", "领域微调", "MoE/模型融合", "蒸馏/推理微调", "端侧微调"]
-    matrix = open_df.pivot_table(index="architecture", columns="training_paradigm", values="MMLU_PRO", aggfunc="mean").reindex(top_arch)
+    arch_map = {
+        "LlamaForCausalLM": "Llama",
+        "Qwen2ForCausalLM": "Qwen2",
+        "Qwen3ForCausalLM": "Qwen3",
+        "DeepseekForCausalLM": "DeepSeek",
+        "MistralForCausalLM": "Mistral",
+        "MixtralForCausalLM": "Mixtral",
+        "GemmaForCausalLM": "Gemma",
+        "PhiForCausalLM": "Phi",
+        "ChatGLMForCausalLM": "GLM",
+    }
+    open_df["arch_short"] = open_df["architecture"].map(arch_map).fillna(open_df["architecture"])
+    paradigms = ["指令微调", "MoE/模型融合", "混合推理", "推理强化", "蒸馏/推理微调", "蒸馏/小模型"]
+    arches = open_df["arch_short"].value_counts().head(8).index.tolist()
+    matrix = open_df.pivot_table(index="arch_short", columns="training_paradigm", values="Average_Score", aggfunc="mean").reindex(arches)
     vals = matrix.to_numpy().astype(float)
     lo, hi = np.nanmin(vals), np.nanmax(vals)
-    left, top = 255, 165
-    cell_w, cell_h = 160, 72
-
+    left, top = 330, 250
+    cell_w, cell_h = 230, 84
     for j, col in enumerate(paradigms):
-        text(draw, (left + j * cell_w + cell_w / 2, top - 42), col, size=17, fill=PALETTE["ink"], anchor="mm")
-    for i, arch in enumerate(top_arch):
-        text(draw, (left - 14, top + i * cell_h + cell_h / 2), arch.replace("ForCausalLM", ""), size=18, fill=PALETTE["ink"], anchor="rm")
+        text_box(draw, (left + j * cell_w + 8, top - 72), col, 190, size=20, fill=PALETTE["ink"])
+    for i, arch in enumerate(arches):
+        text(draw, (left - 28, top + i * cell_h + 24), arch, size=24, bold=True, anchor="ra")
         for j, col in enumerate(paradigms):
             value = matrix.loc[arch, col] if col in matrix.columns else np.nan
-            x0 = left + j * cell_w
-            y0 = top + i * cell_h
-            if np.isnan(value):
-                fill = (241, 245, 249)
-                label = "—"
-            else:
-                fill = heat_color(float(value), lo, hi)
-                label = f"{value:.1f}"
-            draw.rectangle([x0, y0, x0 + cell_w - 4, y0 + cell_h - 4], fill=fill, outline="white", width=2)
-            text(draw, (x0 + cell_w / 2, y0 + cell_h / 2 - 2), label, size=22, bold=not np.isnan(value), anchor="mm")
-
-    text(draw, (255, 675), "结论：Llama/Qwen 系列覆盖多数高分组合，蒸馏与 MoE 让中小模型获得更高能力密度。", size=22, fill=PALETTE["teal"], bold=True)
-    save_chart(img, "03_architecture_heatmap")
+            x0, y0 = left + j * cell_w, top + i * cell_h
+            fill = (241, 245, 249) if np.isnan(value) else heat_color(float(value), lo, hi)
+            label = "—" if np.isnan(value) else f"{value:.1f}"
+            draw.rectangle([x0, y0, x0 + cell_w - 8, y0 + cell_h - 8], fill=fill, outline="white", width=3)
+            text(draw, (x0 + cell_w / 2 - 4, y0 + cell_h / 2 - 6), label, size=26, bold=not np.isnan(value), anchor="mm")
+    text(draw, (330, 1080), "结论：主流提升不只来自更大参数，也来自 MoE、蒸馏和推理训练等工程策略。", size=28, fill=PALETTE["teal"], bold=True)
+    save_chart(img, "04_architecture_heatmap")
 
 
 def corr_color(value: float) -> tuple[int, int, int]:
@@ -294,48 +359,46 @@ def corr_color(value: float) -> tuple[int, int, int]:
 
 
 def chart_correlation(df: pd.DataFrame) -> None:
-    img, draw = canvas("图表四：客观基准与人类偏好 Pearson 相关矩阵", "下三角热力图显示不同能力、速度和延迟指标之间的关系。")
+    img, draw = canvas("图表五：客观基准与人类偏好的相关矩阵", "下三角热力图比较知识、推理、数学、指令遵循、速度与人类 Elo 的关系。")
     cols = BENCHMARKS + ["chatbot_arena_elo", "output_tokens_per_second", "time_to_first_token_s"]
     labels = ["MMLU", "IFEval", "BBH", "GPQA", "MATH", "MuSR", "Elo", "TPS", "TTFT"]
     corr = df[cols].corr()
-    left, top, cell = 245, 145, 66
+    left, top, cell = 320, 230, 92
     for i, label in enumerate(labels):
-        text(draw, (left - 10, top + i * cell + cell / 2), label, size=18, anchor="rm")
-        text(draw, (left + i * cell + cell / 2, top - 22), label, size=17, anchor="mm")
+        text(draw, (left - 18, top + i * cell + 32), label, size=23, anchor="ra")
+        text(draw, (left + i * cell + 42, top - 35), label, size=21, anchor="mm")
     for i, row in enumerate(cols):
         for j, col in enumerate(cols):
-            x0 = left + j * cell
-            y0 = top + i * cell
+            x0, y0 = left + j * cell, top + i * cell
             if j > i:
-                draw.rectangle([x0, y0, x0 + cell - 4, y0 + cell - 4], fill=(248, 250, 252), outline="white")
+                draw.rectangle([x0, y0, x0 + cell - 6, y0 + cell - 6], fill=(248, 250, 252), outline="white")
                 continue
             value = float(corr.loc[row, col])
-            draw.rectangle([x0, y0, x0 + cell - 4, y0 + cell - 4], fill=corr_color(value), outline="white", width=2)
-            fill = "white" if abs(value) > 0.65 else PALETTE["ink"]
-            text(draw, (x0 + cell / 2, y0 + cell / 2 - 1), f"{value:.2f}", size=17, bold=True, fill=fill, anchor="mm")
-    text(draw, (835, 205), "阅读重点", size=24, bold=True)
-    text(draw, (835, 250), "Elo 与 IFEval、MMLU、GPQA 相关性较高，说明真实偏好并非只由数学刷榜决定。", size=20, fill=PALETTE["muted"])
-    text(draw, (835, 332), "TTFT 与体验呈反向压力：延迟越高，本地部署价值越受限制。", size=20, fill=PALETTE["muted"])
-    save_chart(img, "04_correlation_matrix")
+            draw.rectangle([x0, y0, x0 + cell - 6, y0 + cell - 6], fill=corr_color(value), outline="white", width=3)
+            fill = "white" if abs(value) > 0.62 else PALETTE["ink"]
+            text(draw, (x0 + cell / 2 - 3, y0 + cell / 2 - 5), f"{value:.2f}", size=22, bold=True, fill=fill, anchor="mm")
+    text(draw, (1260, 305), "专业含义", size=32, bold=True)
+    text_box(draw, (1260, 360), "Elo 与指令遵循、综合推理高度相关，但并不等于某一个考试分数。", 520, size=26, fill=PALETTE["ink"])
+    text(draw, (1260, 535), "生活直觉", size=32, bold=True)
+    text_box(draw, (1260, 590), "一个模型“分数高”不一定“用起来顺手”；是否听懂要求、回复是否快，也会影响真实体验。", 520, size=26, fill=PALETTE["muted"])
+    save_chart(img, "05_correlation_matrix")
 
 
-def chart_hardware_jointplot(df: pd.DataFrame) -> None:
-    img, draw = canvas("图表五：本地硬件性能联合分布与帕累托前沿", "右下区域代表高吞吐、低首字延迟；红线圈出部署体验更优的模型。")
-    left, top, right, bottom = 110, 175, 920, 620
+def chart_hardware_pareto(df: pd.DataFrame) -> None:
+    img, draw = canvas("图表六：本地部署帕累托图", "右下区域代表高吞吐、低延迟；点的颜色区分开放权重与 API/闭源模型。")
+    left, top, right, bottom = 140, 240, 1450, 1030
     draw_axes(draw, left, top, right, bottom, "输出速度 output_tokens_per_second", "首字延迟 time_to_first_token_s")
     x = df["output_tokens_per_second"]
     y = df["time_to_first_token_s"]
     x_min, x_max = x.min() - 5, x.max() + 5
-    y_min, y_max = 0, y.max() + 0.5
-
+    y_min, y_max = 0, y.max() + 0.3
+    colors = {"开放权重": PALETTE["teal"], "API/闭源": PALETTE["orange"]}
     for _, row in df.iterrows():
-        px = left + (row["output_tokens_per_second"] - x_min) / (x_max - x_min) * (right - left)
-        py = bottom - (row["time_to_first_token_s"] - y_min) / (y_max - y_min) * (bottom - top)
-        color = PALETTE["teal"] if row["availability"] == "开放权重" else PALETTE["orange"]
-        draw.ellipse([px - 8, py - 8, px + 8, py + 8], fill=color, outline="white", width=2)
-        if row["Hardware_Pareto_Index"] <= df["Hardware_Pareto_Index"].quantile(0.18):
-            text(draw, (px + 10, py - 8), row["model_name"].split("-Instruct")[0], size=14)
-
+        px = map_value(row["output_tokens_per_second"], x_min, x_max, left, right)
+        py = map_value(row["time_to_first_token_s"], y_min, y_max, bottom, top)
+        color = colors.get(row["availability"], PALETTE["blue"])
+        radius = 8 + row["Elo_norm"] * 14
+        draw.ellipse([px - radius, py - radius, px + radius, py + radius], fill=color, outline="white", width=2)
     pareto = df.sort_values("output_tokens_per_second", ascending=False)
     best = []
     min_ttft = float("inf")
@@ -343,45 +406,37 @@ def chart_hardware_jointplot(df: pd.DataFrame) -> None:
         if row["time_to_first_token_s"] < min_ttft:
             best.append(row)
             min_ttft = row["time_to_first_token_s"]
-    pts = []
-    for row in best:
-        pts.append((left + (row["output_tokens_per_second"] - x_min) / (x_max - x_min) * (right - left), bottom - (row["time_to_first_token_s"] - y_min) / (y_max - y_min) * (bottom - top)))
+    pts = [(map_value(r["output_tokens_per_second"], x_min, x_max, left, right), map_value(r["time_to_first_token_s"], y_min, y_max, bottom, top)) for r in best]
     if len(pts) > 1:
-        draw.line(pts, fill=PALETTE["red"], width=4)
-
-    hist_x0, hist_y0 = left, 125
-    bins = np.histogram(x, bins=12)
-    max_count = bins[0].max()
-    for count, edge0, edge1 in zip(bins[0], bins[1][:-1], bins[1][1:]):
-        bx0 = left + (edge0 - x_min) / (x_max - x_min) * (right - left)
-        bx1 = left + (edge1 - x_min) / (x_max - x_min) * (right - left)
-        h = 60 * count / max_count
-        draw.rectangle([bx0, hist_y0 + 60 - h, bx1 - 3, hist_y0 + 60], fill=(191, 219, 254))
-
-    y_bins = np.histogram(y, bins=10)
-    max_y_count = y_bins[0].max()
-    for count, edge0, edge1 in zip(y_bins[0], y_bins[1][:-1], y_bins[1][1:]):
-        by0 = bottom - (edge0 - y_min) / (y_max - y_min) * (bottom - top)
-        by1 = bottom - (edge1 - y_min) / (y_max - y_min) * (bottom - top)
-        w = 90 * count / max_y_count
-        draw.rectangle([right + 18, by1, right + 18 + w, by0 - 3], fill=(254, 215, 170))
-
-    top_models = df.nsmallest(5, "Hardware_Pareto_Index")[["model_name", "Hardware_Pareto_Index"]]
-    text(draw, (1010, 190), "黄金模型候选", size=24, bold=True)
+        draw.line(pts, fill=PALETTE["red"], width=5)
+    top_models = df.nsmallest(7, "Hardware_Pareto_Index")
+    panel_x = 1580
+    draw.rounded_rectangle([panel_x - 35, 245, 1940, 1030], radius=18, fill=PALETTE["panel"], outline=PALETTE["grid"], width=2)
+    text(draw, (panel_x, 285), "黄金候选", size=32, bold=True)
+    draw.ellipse([panel_x, 330, panel_x + 20, 350], fill=PALETTE["teal"])
+    text(draw, (panel_x + 30, 324), "开放权重", size=20, fill=PALETTE["ink"])
+    draw.ellipse([panel_x + 150, 330, panel_x + 170, 350], fill=PALETTE["orange"])
+    text(draw, (panel_x + 180, 324), "API/闭源", size=20, fill=PALETTE["ink"])
+    y0 = 390
     for i, (_, row) in enumerate(top_models.iterrows(), 1):
-        text(draw, (1010, 232 + i * 34), f"{i}. {row['model_name']}", size=17)
-    save_chart(img, "05_hardware_jointplot")
+        text(draw, (panel_x, y0), f"{i}. {row['model_name']}", size=22)
+        text(draw, (panel_x, y0 + 28), f"TPS {row['output_tokens_per_second']:.0f} · TTFT {row['time_to_first_token_s']:.2f}s", size=18, fill=PALETTE["muted"])
+        y0 += 72
+    text_box(draw, (panel_x, 922), "生活含义：等待更少，长文、代码、资料整理更连贯。", 300, size=22, fill=PALETTE["teal"], bold=True)
+    save_chart(img, "06_hardware_pareto")
 
 
 def main() -> None:
     ensure_dirs()
     df = process_data()
-    chart_scaling_bubble(df)
-    chart_radar(df)
+    chart_landscape_bubble(df)
+    chart_provider_ranking(df)
+    chart_series_progression(df)
     chart_architecture_heatmap(df)
     chart_correlation(df)
-    chart_hardware_jointplot(df)
+    chart_hardware_pareto(df)
     print(f"processed rows: {len(df)}")
+    print(f"families: {df['family'].nunique()}")
     print(f"processed data: {PROCESSED_PATH}")
     print(f"figures: {FIGURE_DIR}")
 

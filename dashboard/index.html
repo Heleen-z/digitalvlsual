@@ -3,14 +3,14 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>开源大模型性能演进可视化分析</title>
+    <title>主流大模型数据处理与可视化课程项目</title>
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
     <header class="topbar">
       <div>
         <p class="eyebrow">数据处理与可视化课程项目</p>
-        <h1>开源大语言模型性能演进与架构特征分析</h1>
+        <h1>2024-2026 主流大语言模型横向与纵向可视化分析</h1>
       </div>
       <a class="ppt-link" href="../presentation/LLM项目课堂展示.pptx">下载课堂 PPT</a>
     </header>
@@ -18,49 +18,65 @@
     <main>
       <section class="summary-grid" aria-label="项目摘要">
         <article>
+          <span>数据范围</span>
+          <strong>68 个主流代表模型 · 17 个模型系列 · 截止 2026-06-05</strong>
+        </article>
+        <article>
           <span>处理流程</span>
-          <strong>清洗 → 插补 → 归一化 → 特征工程 → 可视化</strong>
+          <strong>公开资料整理 → 缺失标记 → 插补 → 归一化 → 复合指标</strong>
         </article>
         <article>
-          <span>核心对象</span>
-          <strong>2024-2026 LLM 基准、Elo、架构与硬件延迟</strong>
-        </article>
-        <article>
-          <span>本地部署</span>
-          <strong>Python + Pillow + 静态网页，无外部 CDN</strong>
+          <span>可视化目标</span>
+          <strong>横向比较不同模型，纵向观察同一系列的进步</strong>
         </article>
       </section>
 
       <section class="workflow">
-        <h2>数据处理逻辑</h2>
+        <h2>课程方法：从表格数据到可解释图表</h2>
         <div class="steps">
-          <div><b>1</b><span>从模型名提取参数量，修正 -1 与缺失值</span></div>
-          <div><b>2</b><span>基于六类客观基准手写 KNN 插补 Elo</span></div>
-          <div><b>3</b><span>Min-Max 归一化，构造效率与硬件帕累托指数</span></div>
-          <div><b>4</b><span>输出 CSV、PNG 图表与课堂展示 PPT</span></div>
+          <div><b>1</b><span>统一字段：发布日期、系列、架构、参数量、基准分、Elo、速度和延迟</span></div>
+          <div><b>2</b><span>保留观测标记：区分实测指标与插补指标，避免把估算当事实</span></div>
+          <div><b>3</b><span>构造复合指标：归一化后综合比较能力、人类偏好和指令遵循</span></div>
+          <div><b>4</b><span>设计图表编码：点、线、条、热力矩阵和帕累托前沿分别回答不同问题</span></div>
         </div>
       </section>
 
       <section class="figures" aria-label="可视化图表">
         <figure>
-          <img src="./assets/figures/01_scaling_bubble.png" alt="参数规模与人类偏好 Elo 的气泡散点图" />
-          <figcaption>图一：参数规模并不线性决定人类偏好，8B 级高质量微调模型呈现明显能力密度优势。</figcaption>
+          <img src="./assets/figures/01_landscape_bubble.png" alt="主流模型横向能力气泡图" />
+          <figcaption>
+            图一展示了参数规模、综合能力、人类偏好和开放性之间的横向关系。专业上，它说明参数量不是唯一解释变量；直觉上，使用者会感觉到一些小模型也已经足够顺手。
+          </figcaption>
         </figure>
         <figure>
-          <img src="./assets/figures/02_radar_profile.png" alt="7B-9B 量级模型能力雷达图" />
-          <figcaption>图二：雷达图揭示同参数量级下的能力轮廓差异，尤其是 GPQA 与 MATH 的偏科现象。</figcaption>
+          <img src="./assets/figures/02_provider_ranking.png" alt="头部模型横向排名条形图" />
+          <figcaption>
+            图二把每个主流系列的代表模型转成排名条形图。专业上，它体现了复合指标的比较能力；直觉上，它帮助快速判断不同模型家族大致处在什么水平。
+          </figcaption>
         </figure>
         <figure>
-          <img src="./assets/figures/03_architecture_heatmap.png" alt="开源架构与训练范式热力矩阵" />
-          <figcaption>图三：Llama 与 Qwen 系列构成主流底座，MoE、蒸馏和领域微调推动二次开发。</figcaption>
+          <img src="./assets/figures/03_series_progression.png" alt="同一系列模型纵向进步折线图" />
+          <figcaption>
+            图三展示 GPT、Claude、Gemini、Llama、Qwen、DeepSeek 等系列随时间的提升。专业上，这是纵向趋势分析；直觉上，新版本往往意味着更少等待、更少返工。
+          </figcaption>
         </figure>
         <figure>
-          <img src="./assets/figures/04_correlation_matrix.png" alt="客观基准与人类偏好 Pearson 相关矩阵" />
-          <figcaption>图四：相关矩阵回答“哪些测试更接近人类偏好”，并显示延迟对真实体验的压力。</figcaption>
+          <img src="./assets/figures/04_architecture_heatmap.png" alt="架构生态与训练范式热力图" />
+          <figcaption>
+            图四用热力矩阵展示架构和训练范式组合。专业上，它体现了分类变量与连续指标的联合编码；直觉上，模型进步不只是“变大”，也来自训练方法改变。
+          </figcaption>
         </figure>
         <figure>
-          <img src="./assets/figures/05_hardware_jointplot.png" alt="本地硬件性能联合分布与帕累托前沿" />
-          <figcaption>图五：高吞吐、低首字延迟的右下区域是本地部署的黄金候选空间。</figcaption>
+          <img src="./assets/figures/05_correlation_matrix.png" alt="客观基准与人类偏好的相关矩阵" />
+          <figcaption>
+            图五展示基准指标、Elo、速度和延迟之间的相关性。专业上，它说明不同指标之间的关系；直觉上，考试分数高不一定代表日常使用体验最好。
+          </figcaption>
+        </figure>
+        <figure>
+          <img src="./assets/figures/06_hardware_pareto.png" alt="本地部署帕累托图" />
+          <figcaption>
+            图六展示吞吐、首字延迟和能力之间的帕累托关系。专业上，它是多指标权衡图；直觉上，它对应聊天是否连贯、长文生成是否拖沓。
+          </figcaption>
         </figure>
       </section>
     </main>

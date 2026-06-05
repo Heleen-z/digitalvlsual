@@ -57,7 +57,7 @@ h2 {
 
 main {
   margin: 0 auto;
-  max-width: 1380px;
+  max-width: 1560px;
   padding: 28px clamp(18px, 5vw, 64px) 64px;
 }
 
@@ -85,7 +85,7 @@ main {
 
 .summary-grid strong {
   display: block;
-  font-size: 20px;
+  font-size: 18px;
   line-height: 1.35;
 }
 
@@ -149,7 +149,7 @@ figure img {
 figcaption {
   border-top: 1px solid #e2e8f0;
   color: #475569;
-  font-size: 16px;
+  font-size: 17px;
   line-height: 1.55;
   padding: 14px 18px 18px;
 }
@@ -170,4 +170,3 @@ figcaption {
     justify-self: start;
   }
 }
-
