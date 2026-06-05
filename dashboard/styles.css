@@ -1,0 +1,173 @@
+:root {
+  color-scheme: light;
+  font-family: "Noto Sans SC", "Source Han Sans CN", "Microsoft YaHei", "SimHei", Arial, sans-serif;
+  background: #f6f8fb;
+  color: #232b38;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: #f6f8fb;
+}
+
+.topbar {
+  align-items: center;
+  background: #ffffff;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  gap: 32px;
+  justify-content: space-between;
+  padding: 28px clamp(24px, 6vw, 72px);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.eyebrow {
+  color: #0f766e;
+  font-size: 14px;
+  font-weight: 700;
+  margin: 0 0 6px;
+}
+
+h1 {
+  font-size: clamp(24px, 3vw, 40px);
+  line-height: 1.18;
+  margin: 0;
+}
+
+h2 {
+  font-size: 26px;
+  margin: 0 0 18px;
+}
+
+.ppt-link {
+  background: #2563eb;
+  border-radius: 8px;
+  color: #fff;
+  flex: 0 0 auto;
+  font-weight: 700;
+  padding: 12px 18px;
+  text-decoration: none;
+}
+
+main {
+  margin: 0 auto;
+  max-width: 1380px;
+  padding: 28px clamp(18px, 5vw, 64px) 64px;
+}
+
+.summary-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-bottom: 24px;
+}
+
+.summary-grid article,
+.workflow {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 20px;
+}
+
+.summary-grid span {
+  color: #64748b;
+  display: block;
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+
+.summary-grid strong {
+  display: block;
+  font-size: 20px;
+  line-height: 1.35;
+}
+
+.workflow {
+  margin-bottom: 24px;
+}
+
+.steps {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.steps div {
+  align-items: center;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  display: flex;
+  gap: 12px;
+  min-height: 76px;
+  padding: 14px;
+}
+
+.steps b {
+  align-items: center;
+  background: #0f766e;
+  border-radius: 50%;
+  color: #fff;
+  display: inline-flex;
+  flex: 0 0 34px;
+  height: 34px;
+  justify-content: center;
+  width: 34px;
+}
+
+.steps span {
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+.figures {
+  display: grid;
+  gap: 24px;
+}
+
+figure {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  margin: 0;
+  overflow: hidden;
+}
+
+figure img {
+  display: block;
+  height: auto;
+  width: 100%;
+}
+
+figcaption {
+  border-top: 1px solid #e2e8f0;
+  color: #475569;
+  font-size: 16px;
+  line-height: 1.55;
+  padding: 14px 18px 18px;
+}
+
+@media (max-width: 900px) {
+  .topbar,
+  .summary-grid,
+  .steps {
+    grid-template-columns: 1fr;
+  }
+
+  .topbar {
+    align-items: flex-start;
+    display: grid;
+  }
+
+  .ppt-link {
+    justify-self: start;
+  }
+}
+

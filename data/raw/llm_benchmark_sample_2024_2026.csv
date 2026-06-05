@@ -1,0 +1,35 @@
+﻿model_name,release_year,organization,availability,architecture,training_paradigm,parameter_count_B,MMLU_PRO,IFEval,BBH,GPQA,MATH_Lvl_5,MuSR,chatbot_arena_elo,arena_votes,output_tokens_per_second,time_to_first_token_s
+Llama-3.1-8B-Instruct,2024,Meta,开放权重,LlamaForCausalLM,指令微调,8.0,51.4,74.2,63.8,33.1,31.6,42.4,1248.0,820000,58.0,0.62
+Llama-3.1-70B-Instruct,2024,Meta,开放权重,LlamaForCausalLM,指令微调,70.0,63.7,82.1,71.4,42.9,46.8,51.2,1358.0,980000,18.0,1.55
+Llama-3.1-405B-Instruct,2024,Meta,开放权重,LlamaForCausalLM,指令微调,405.0,71.1,87.4,77.2,50.8,53.6,58.3,1401.0,610000,5.2,3.8
+Qwen2.5-7B-Instruct,2024,Alibaba,开放权重,Qwen2ForCausalLM,指令微调,7.0,53.6,78.5,65.7,34.9,38.2,43.7,1262.0,510000,66.0,0.48
+Qwen2.5-14B-Instruct,2024,Alibaba,开放权重,Qwen2ForCausalLM,指令微调,14.0,58.9,81.6,69.1,39.4,44.2,48.8,1308.0,490000,42.0,0.72
+Qwen2.5-72B-Instruct,2024,Alibaba,开放权重,Qwen2ForCausalLM,指令微调,72.0,66.4,84.8,73.6,47.2,52.4,55.5,1375.0,720000,16.5,1.42
+Qwen2.5-Coder-7B,2024,Alibaba,开放权重,Qwen2ForCausalLM,领域微调,-1.0,49.8,70.2,61.5,30.2,50.1,39.6,,120000,71.0,0.44
+Mistral-7B-Instruct-v0.3,2024,Mistral AI,开放权重,MistralForCausalLM,指令微调,7.3,47.2,72.8,59.4,28.7,29.4,37.8,1219.0,430000,74.0,0.41
+Mixtral-8x7B-Instruct,2024,Mistral AI,开放权重,MixtralForCausalLM,MoE/模型融合,46.7,56.1,80.3,68.2,36.2,41.8,47.0,1298.0,380000,31.0,0.95
+Mixtral-8x22B-Instruct,2024,Mistral AI,开放权重,MixtralForCausalLM,MoE/模型融合,141.0,62.5,82.5,71.8,43.3,47.7,52.9,,190000,12.5,1.96
+DeepSeek-V2-Lite-16B,2024,DeepSeek,开放权重,DeepseekForCausalLM,MoE/模型融合,16.0,55.2,77.3,66.4,37.9,42.6,46.1,1287.0,280000,49.5,0.69
+DeepSeek-V2-236B,2024,DeepSeek,开放权重,DeepseekForCausalLM,MoE/模型融合,236.0,67.8,84.1,74.5,49.1,55.8,56.6,1388.0,410000,10.2,2.3
+DeepSeek-R1-Distill-Qwen-7B,2025,DeepSeek,开放权重,Qwen2ForCausalLM,蒸馏/推理微调,-1.0,57.9,79.4,68.9,45.8,63.4,49.6,1326.0,450000,60.0,0.56
+DeepSeek-R1-Distill-Llama-8B,2025,DeepSeek,开放权重,LlamaForCausalLM,蒸馏/推理微调,-1.0,56.8,78.1,67.5,44.3,61.7,48.2,,310000,57.0,0.59
+Gemma-2-9B-it,2024,Google,开放权重,GemmaForCausalLM,指令微调,9.0,52.7,76.8,64.0,32.5,35.7,41.9,1255.0,300000,63.0,0.52
+Gemma-2-27B-it,2024,Google,开放权重,GemmaForCausalLM,指令微调,27.0,58.4,80.1,68.4,38.8,43.0,47.4,,210000,30.5,0.88
+Phi-3.5-mini-instruct-3.8B,2024,Microsoft,开放权重,PhiForCausalLM,指令微调,3.8,45.6,69.4,56.8,27.9,33.5,35.2,1188.0,260000,95.0,0.31
+Yi-1.5-9B-Chat,2024,01.AI,开放权重,LlamaForCausalLM,指令微调,9.0,49.9,73.1,61.2,31.1,34.4,39.0,,120000,61.0,0.54
+InternLM2.5-7B-Chat,2024,Shanghai AI Lab,开放权重,InternLMForCausalLM,指令微调,7.0,50.8,75.6,62.3,31.8,36.1,40.3,,90000,69.0,0.47
+Command-R-35B,2024,Cohere,API/闭源,CommandRForCausalLM,原生预训练,35.0,57.5,78.6,67.9,37.1,39.6,46.9,1302.0,240000,26.0,0.82
+Claude-3.5-Sonnet,2024,Anthropic,API/闭源,ClosedAPI,原生预训练,,72.4,88.6,79.8,58.1,61.0,62.3,1410.0,1900000,44.0,0.45
+GPT-4o,2024,OpenAI,API/闭源,ClosedAPI,原生预训练,,73.2,89.2,80.5,59.4,62.1,63.0,1425.0,2300000,52.0,0.38
+Gemini-1.5-Pro,2024,Google,API/闭源,ClosedAPI,原生预训练,,70.5,86.8,77.4,55.2,58.8,59.5,1392.0,1600000,39.0,0.63
+Grok-2,2024,xAI,API/闭源,ClosedAPI,原生预训练,,67.2,84.3,74.8,50.5,52.9,56.1,,760000,41.0,0.7
+Qwen3-8B-Instruct,2025,Alibaba,开放权重,Qwen3ForCausalLM,指令微调,8.0,59.8,82.4,70.3,42.6,55.9,50.1,1335.0,360000,64.0,0.5
+Qwen3-32B-Instruct,2025,Alibaba,开放权重,Qwen3ForCausalLM,指令微调,32.0,65.2,84.7,73.5,49.7,61.3,55.9,1379.0,330000,29.0,0.88
+Llama-4-Scout-17B-16E,2025,Meta,开放权重,LlamaForCausalLM,MoE/模型融合,109.0,64.9,83.6,73.0,48.4,58.7,54.2,,260000,21.0,1.1
+Mistral-Small-24B-Instruct,2025,Mistral AI,开放权重,MistralForCausalLM,指令微调,24.0,60.1,81.8,70.4,41.9,48.3,49.7,1328.0,210000,35.0,0.76
+MiniCPM-4B,2025,ModelBest,开放权重,MiniCPMForCausalLM,端侧微调,4.0,46.8,70.1,57.9,29.2,35.6,36.4,,80000,102.0,0.28
+GLM-4-9B-Chat,2025,Zhipu AI,开放权重,ChatGLMForCausalLM,指令微调,9.0,54.1,77.4,65.9,35.1,39.9,43.9,1275.0,200000,59.0,0.57
+Baichuan2-13B-Chat,2024,Baichuan,开放权重,BaichuanForCausalLM,指令微调,13.0,43.6,68.5,55.1,25.9,28.7,34.0,,70000,46.0,0.73
+OpenHermes-2.5-Mistral-7B,2024,Teknium,开放权重,MistralForCausalLM,领域微调,-1.0,48.8,73.4,60.1,29.8,34.2,38.7,,110000,72.0,0.43
+Nous-Hermes-2-Yi-34B,2024,Nous Research,开放权重,LlamaForCausalLM,领域微调,34.0,52.9,76.0,64.5,33.6,36.9,42.5,,105000,28.0,0.91
+WizardLM-2-8x22B,2024,Microsoft,开放权重,MixtralForCausalLM,MoE/模型融合,141.0,64.2,83.0,72.1,45.0,50.2,53.7,1362.0,260000,11.0,1.9
