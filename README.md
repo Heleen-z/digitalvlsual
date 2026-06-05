@@ -54,7 +54,9 @@ http://localhost:8000/dashboard/
 
 ## 数据口径
 
-当前项目采用“公开资料 + 离线主流代表集”的课程项目口径，不依赖 API key。数据覆盖 68 个主流代表模型、17 个模型系列，截止日期为 2026-06-05。覆盖系列包括 GPT-o、Claude、Gemini、Gemma、Llama、Qwen、DeepSeek、Mistral、Grok、Command、GLM、Kimi、ERNIE、Hunyuan、Phi、Yi、MiniMax 等。
+当前项目采用“公开资料 + 离线主流代表集”的课程项目口径，不依赖 API key。数据覆盖 71 个主流代表模型、17 个模型系列，截止日期为 2026-06-05。覆盖系列包括 GPT/GPT-o、Claude、Gemini、Gemma、Llama、Qwen、DeepSeek、Mistral、Grok、Command、GLM、Kimi、ERNIE、Hunyuan、Phi、Yi、MiniMax 等。
+
+最新旗舰代表已纳入头部横向比较，包括 Gemini 3.1 Pro、Claude Opus 4.6、GPT-5.5。对于这些较新的模型，若公开资料没有完全对应本项目字段的 MMLU_PRO、IFEval、BBH、GPQA、MATH、MuSR、Arena Elo、吞吐或首字延迟，则在 CSV 中保留估算值并将对应 `*_observed` 标记为 `False`。
 
 主要字段包括：
 

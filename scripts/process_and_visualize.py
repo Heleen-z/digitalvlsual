@@ -261,6 +261,7 @@ def chart_landscape_bubble(df: pd.DataFrame) -> None:
 
 def chart_provider_ranking(df: pd.DataFrame) -> None:
     img, draw = canvas("图表二：头部模型横向排名", "每个系列取综合分最高的代表模型，比较不同公司/系列的当前能力位置。")
+    text(draw, (1900, 102), "* 含非完全实测/口径映射指标", size=21, fill=PALETTE["muted"], anchor="ra")
     rep = df.sort_values("Composite_Score", ascending=False).groupby("family", as_index=False).head(1).sort_values("Composite_Score", ascending=True)
     left, top, right, row_h = 520, 218, 1770, 45
     max_score = rep["Composite_Score"].max()
@@ -272,7 +273,9 @@ def chart_provider_ranking(df: pd.DataFrame) -> None:
         text(draw, (70, y + 6), row["family"], size=21, bold=True)
         text(draw, (230, y + 6), row["model_name"], size=19, fill=PALETTE["muted"])
         draw.rounded_rectangle([left, y, left + bar_w, y + 29], radius=8, fill=color)
-        text(draw, (left + bar_w + 14, y + 1), f"{row['Composite_Score']:.3f}", size=19)
+        has_estimated_metric = not bool(row.get("benchmark_observed", True)) or not bool(row.get("arena_observed", True)) or not bool(row.get("hardware_observed", True))
+        suffix = "*" if has_estimated_metric else ""
+        text(draw, (left + bar_w + 14, y + 1), f"{row['Composite_Score']:.3f}{suffix}", size=19)
     save_chart(img, "02_provider_ranking")
 
 
